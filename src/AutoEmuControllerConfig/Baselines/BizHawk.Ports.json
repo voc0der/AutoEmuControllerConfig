@@ -1,0 +1,30 @@
+{
+  "BizHawk.Emulation.Cores.Nintendo.N64.N64": {
+    "$type": "BizHawk.Emulation.Cores.Nintendo.N64.N64SyncSettings, BizHawk.Emulation.Cores",
+    "Controllers": [
+      {
+        "PakType": 2,
+        "IsConnected": true
+      },
+      {
+        "PakType": 1,
+        "IsConnected": true
+      },
+      {
+        "PakType": 1,
+        "IsConnected": false
+      },
+      {
+        "PakType": 1,
+        "IsConnected": false
+      }
+    ]
+  },
+  "BizHawk.Emulation.Cores.Consoles.Nintendo.Ares64.Ares64": {
+    "$type": "BizHawk.Emulation.Cores.Consoles.Nintendo.Ares64.Ares64+Ares64SyncSettings, BizHawk.Emulation.Cores",
+    "P1Controller": 2,
+    "P2Controller": 0,
+    "P3Controller": 0,
+    "P4Controller": 0
+  }
+}

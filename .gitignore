@@ -1,0 +1,8 @@
+/archive/
+/artifacts/
+/native/
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
