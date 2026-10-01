@@ -1,0 +1,10 @@
+[
+  {
+    "url": "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10-win32-x64.zip",
+    "sha256": "6cf9706eefd0a4a06dc764007934d428afaf029fabdd408a9e646048c91e18fb"
+  },
+  {
+    "url": "https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16-win32-x64.zip",
+    "sha256": "4217944b4e51457af4a59c82d883f8443b3e65964b2acd8943484c492756c4b6"
+  }
+]

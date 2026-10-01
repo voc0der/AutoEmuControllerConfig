@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/AutoEmuControllerConfig/AutoEmuControllerConfig.csproj" />
+  <Project Path="tests/AutoEmuControllerConfig.Tests/AutoEmuControllerConfig.Tests.csproj" />
+</Solution>

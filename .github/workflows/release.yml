@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Test, package, and release Windows x64
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Read release metadata
+        id: version
+        run: |
+          $aecInfo = ./scripts/Get-ReleaseInfo.ps1
+          "version=$($aecInfo.Version)" >> $env:GITHUB_OUTPUT
+          "tag=$($aecInfo.Tag)" >> $env:GITHUB_OUTPUT
+      - name: Check existing release and tag
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AEC_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $aecUri = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/releases/tags/$env:AEC_TAG"
+          $aecHeaders = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' }
+          $null = Invoke-RestMethod -Uri $aecUri -Headers $aecHeaders -SkipHttpErrorCheck -StatusCodeVariable aecStatus -TimeoutSec 60
+          if ($aecStatus -ne 200 -and $aecStatus -ne 404) {
+            throw "Could not check release state (HTTP $aecStatus)."
+          }
+          $aecReleased = $aecStatus -eq 200
+          $aecTag = git tag --list $env:AEC_TAG
+          if ($LASTEXITCODE -ne 0) { throw 'Could not check Git tags.' }
+          $aecTagExists = -not [string]::IsNullOrWhiteSpace($aecTag)
+          if ($aecTagExists -and -not $aecReleased) {
+            $aecCommit = git rev-list -n 1 $env:AEC_TAG
+            if ($LASTEXITCODE -ne 0 -or $aecCommit -ne $env:GITHUB_SHA) {
+              throw "Tag $env:AEC_TAG points at another commit. Bump VERSION before releasing."
+            }
+          }
+          "released=$($aecReleased.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "tag_exists=$($aecTagExists.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+      - name: Test and package
+        run: ./scripts/Publish.ps1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AutoEmuControllerConfig-${{ steps.version.outputs.tag }}-win-x64
+          path: artifacts/release/*
+          if-no-files-found: error
+          compression-level: 0
+      - name: Create version tag
+        if: steps.state.outputs.released != 'true' && steps.state.outputs.tag_exists != 'true'
+        env:
+          AEC_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a $env:AEC_TAG -m "Release $env:AEC_TAG" $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create the version tag.' }
+          git push origin $env:AEC_TAG
+          if ($LASTEXITCODE -ne 0) { throw 'Could not push the version tag.' }
+      - name: Publish GitHub release
+        if: steps.state.outputs.released != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $aecInfo = ./scripts/Get-ReleaseInfo.ps1
+          $aecArgs = @('release', 'create', $aecInfo.Tag,
+            "artifacts/release/$($aecInfo.ArchiveName)",
+            "artifacts/release/$($aecInfo.ChangelogName)",
+            'artifacts/release/SHA256SUMS.txt',
+            '--title', "AutoEmuControllerConfig $($aecInfo.Tag)",
+            '--notes-file', 'artifacts/release/release-notes.md', '--verify-tag')
+          if ($aecInfo.Prerelease) { $aecArgs += '--prerelease' }
+          gh @aecArgs
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish the GitHub release.' }
+      - name: Already released
+        if: steps.state.outputs.released == 'true'
+        run: Write-Host 'This version already has a release; tests passed and the existing release was preserved.'
